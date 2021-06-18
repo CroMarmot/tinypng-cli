@@ -17,7 +17,7 @@ const version = require("./package.json").version;
 let openStreams = 0;
 
 function pruneCached(images, cacheMap) {
-  return images.filter(function (image) {
+  return images.filter((image) => {
     if (cacheMap[image] && md5File.sync(image) == cacheMap[image]) {
       return false;
     }
@@ -64,7 +64,7 @@ function main() {
   console.log("v" + version + "\n");
 
   const files = argv._.length ? argv._ : ["."];
-  const prefix = typeof argv.prefix === 'string'?argv.prefix: "tinypng-";
+  const prefix = typeof argv.prefix === "string" ? argv.prefix : "tinypng-";
 
   let key = "";
   const resize = {};
@@ -132,7 +132,7 @@ function main() {
   }
   let images = [];
 
-  files.forEach(function (file) {
+  files.forEach((file) => {
     if (!fs.existsSync(file)) {
       return;
     }
@@ -176,7 +176,7 @@ function main() {
   console.log(chalk.bold("Processing..."));
 
   let processed = 0;
-  unique.forEach(function (file) {
+  unique.forEach((file) => {
     if (max === 0) {
       return;
     } else {
@@ -200,7 +200,7 @@ function main() {
             pass: key
           }
         },
-        function (error, response, body) {
+        (error, response, body) => {
           openStreams = openStreams - 1;
           processed += 1;
           try {
@@ -280,16 +280,18 @@ function main() {
           const fileStream = fs.createWriteStream(dstFileName);
 
           openStreams = openStreams + 1;
-          fileStream.on("finish", function () {
+          fileStream.on("finish", () => {
             cacheMap[file] = md5File.sync(file);
             openStreams = openStreams - 1;
           });
+
+          let req;
 
           if (
             resize.hasOwnProperty("height") ||
             resize.hasOwnProperty("width")
           ) {
-            request
+            req = request
               .get(body.output.url, {
                 auth: {
                   user: "api",
@@ -298,13 +300,18 @@ function main() {
                 json: {
                   resize: resize
                 }
-              })
-              .pipe(fileStream);
+              });
           } else {
-            request
-              .get(body.output.url)
-              .pipe(fileStream);
+            req = request
+              .get(body.output.url);
           }
+          req.on("response", (res) => {
+            if (res.statusCode !== 200) {
+              console.error("response", res);
+              return;
+            }
+            req.pipe(fileStream);
+          });
         }
       )
     );
@@ -312,7 +319,7 @@ function main() {
 
   // Save the cacheMap on wet runs
   if (!argv["dry-run"]) {
-    const saveCacheMapWhenCompvare = function () {
+    const saveCacheMapWhenCompvare = () => {
       if (openStreams > 0) {
         return setTimeout(saveCacheMapWhenCompvare, 100);
       }
